@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Snakey snake</title>
+    <style>
+        canvas {
+            border: 10px solid #000000;
+            background-color: #000000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <script>
+        function getRndInteger(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+
+        function startGame() {
+            myGameArea.start();
+            mySnake = new snake(20, 20, "red", 0, 0);
+            myFruit = new fruit(20, 20, "white", getRndInteger(1, 20) * 30, getRndInteger(1, 20) * 30);
+
+        }
+
+        var myGameArea = {
+            keys: [],
+            canvas: document.createElement("canvas"),
+            start: function () {
+                this.canvas.width = 620;
+                this.canvas.height = 620;
+                this.context = this.canvas.getContext("2d");
+                document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+                this.interval = setInterval(updateGameArea, 20);
+                window.addEventListener('keydown', function (e) {
+                    myGameArea.keys = (myGameArea.keys || []);
+                    myGameArea.keys.push(e.keyCode);
+                })
+            },
+            clear: function () {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+        }
+
+        function snake(width, height, color, x, y) {
+            this.text = "";
+            this.alive = true;
+            this.width = width;
+            this.height = height;
+            this.directionTimer = 0;
+            this.direction;
+            this.baseSpeedX = width + 10;
+            this.baseSpeedY = height + 10;
+            this.speedX = 0;
+            this.speedY = 0;
+            // This variable holds the positions of all blocks of the snake
+            this.positions = [{
+                'x': x,
+                'y': y
+            }]
+            // This is the position of the head of the snake, used for controlling death
+            this.head = {
+                'x': x,
+                'y': y
+            }
+            ctx = myGameArea.context;
+
+            this.newDir = function () {
+                let prevkeys = myGameArea.keys.slice();
+                for (let i = 0; i < prevkeys.length; i++) {
+                    if (prevkeys[i] == 37) {
+                        if (this.speedX != 0) myGameArea.keys.splice(i);
+                        else {
+                            this.direction = 37;
+                        }
+                    } else if (prevkeys[i] == 39) {
+                        if (this.speedX != 0) myGameArea.keys.splice(i);
+                        else {
+                            this.direction = 39
+                        }
+                    } else if (prevkeys[i] == 38) {
+                        if (this.speedY != 0) myGameArea.keys.splice(i);
+                        else {
+                            this.direction = 38;
+                        }
+                    } else if (prevkeys[i] == 40) {
+                        if (this.speedY != 0) myGameArea.keys.splice(i);
+                        else {
+                            this.direction = 40;
+                        }
+                    } else if (prevkeys[i] == 32) {
+                        this.paused ? this.paused = false : this.paused = true;
+                    } else if (prevkeys[i] == 67) {
+                        this.addTail();
+                    } else continue;
+                    myGameArea.keys.splice(i);
+                    break;
+                }
+            }
+            this.newPos = function () { // TODO: Implement proper movement
+                if (!mySnake.paused && mySnake.alive) {
+                    // Speed at which the snake moves depends on the timer and the fps
+                    this.directionTimer = (this.directionTimer + 1) % 5
+                    // If timer reaches its end, parse and execute next movement
+                    if (this.directionTimer == 0) {
+                        // Set direction
+                        if (this.direction) {
+                            switch (this.direction) {
+                                case 37:
+                                    this.speedX = -this.baseSpeedX;
+                                    this.speedY = 0;
+                                    break;
+                                case 38:
+                                    this.speedX = 0;
+                                    this.speedY = -this.baseSpeedY;
+                                    break;
+                                case 39:
+                                    this.speedX = this.baseSpeedX;
+                                    this.speedY = 0;
+                                    break;
+                                case 40:
+                                    this.speedX = 0;
+                                    this.speedY = this.baseSpeedY;
+                                    break;
+                            }
+                            this.direction = false;
+                        }
+                        // Change head position
+                        this.positions[this.positions.length] = {
+                            'x': this.positions[this.positions.length - 1].x + this.speedX,
+                            'y': this.positions[this.positions.length - 1].y + this.speedY
+                        };
+                        this.head = Object.assign(this.positions[this.positions.length - 1]);
+                        // The following block of code makes the looping around the game area possible
+                        if (this.positions[this.positions.length - 1].x >= myGameArea.canvas.width) {
+                            this.positions[this.positions.length - 1].x = 0;
+                        } else if (this.positions[this.positions.length - 1].x < 0) {
+                            this.positions[this.positions.length - 1].x = myGameArea.canvas.width - this.width;
+                        } else if (this.positions[this.positions.length - 1].y >= myGameArea.canvas.height) {
+                            this.positions[this.positions.length - 1].y = 0;
+                        } else if (this.positions[this.positions.length - 1].y < 0) {
+                            this.positions[this.positions.length - 1].y = myGameArea.canvas.height - this.height;
+                        }
+                        // Detecting if the fruit was eaten or not
+                        if (this.positions[this.positions.length - 1].x == myFruit.x && this.positions[this.positions
+                                .length -
+                                1].y == myFruit.y) {
+                            myFruit.eaten = true;
+                            this.addTail();
+                        }
+                        this.positions.splice(0, 1);
+                    }
+                }
+            }
+
+            this.addTail = function () {
+                this.positions.unshift(Object.assign(this.positions[0]));
+
+            }
+            this.update = function () {
+                ctx.fillStyle = color;
+                for (let obj of this.positions.slice(0, this.positions.length - 1)) {
+                    ctx.fillRect(obj.x, obj.y, this.width, this.height);
+                    if (obj.x === this.head.x && obj.y === this.head.y) {
+                        this.alive = false;
+                        this.paused = true;
+                    }
+                }
+                ctx.fillRect(this.head.x, this.head.y, this.width, this.height);
+
+                if (this.paused) {
+                    ctx.fillStyle = "white";
+                    ctx.font = "30px Arial";
+                    ctx.textAlign = "center";
+                    this.alive ? this.text = "Paused" : this.text = "GAME OVER";
+                    ctx.fillText(this.text, myGameArea.canvas.width / 2, myGameArea.canvas.height / 2);
+                }
+
+            }
+        }
+
+        function fruit(width, height, color, x, y) {
+            this.width = width;
+            this.height = height;
+            this.x = x;
+            this.y = y;
+            this.eaten = false;
+
+            this.update = function () {
+                if (this.eaten) {
+                    do {
+                        this.x = getRndInteger(0, 20) * 30;
+                        this.y = getRndInteger(0, 20) * 30;
+                        this.eaten = false;
+                        for (let pos of mySnake.positions) {
+                            if (this.x == pos.x && this.y == pos.y) {
+                                this.eaten = true;
+                                break;
+                            }
+                        }
+                    } while (this.eaten);
+                    console.log(`${this.x}, ${this.y}`)
+                }
+                ctx.fillStyle = color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+
+        }
+
+        function updateGameArea() {
+            myGameArea.clear();
+            console.log(myGameArea.keys);
+            mySnake.newDir();
+            mySnake.newPos();
+            mySnake.update();
+            myFruit.update();
+        }
+        startGame();
+    </script>
+
+</body>
+
+</html>
